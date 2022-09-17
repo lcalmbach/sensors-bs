@@ -3,35 +3,36 @@ base= {'local':'./data/',
         's3': 'https://lc-opendata01.s3.amazonaws.com/'}
 datasource = {
         'smart-noise':f'{base[config]}100087.gzip', 
+        'smart-noise-station':f'{base[config]}100087-station.gzip', 
         'smart-climate':f'{base[config]}100009.gzip', 
-        'smart-climate-stations':f'{base[config]}100009-station.gzip', 
+        'smart-climate-station':f'{base[config]}100009-station.gzip', 
         
     }
 
 SENSORS_DICT = {
-    'Lufttemperatur °C':{
+    'Lufttemperatur [°C]':{
         'data-source': 'smart-climate',
         'data-source-station': 'smart-climate-station',
         'field':'air_temp',
-        'label':'Lufttemperatur °C',
+        'label':'Lufttemperatur [°C]',
         'group_fields': ['station_id','name', 'lat', 'long'],
         'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
         'map_agg': ['Mittelwert', 'Minimum','Maximum', 'Standard Abweichung']
     },
-    'Niederschlag mm':{
+    'Niederschlag [mm]':{
         'data-source': 'smart-climate',
         'field':'diff_prec',
-        'label':'Niederschlag mm',
+        'label':'Niederschlag [mm]',
         'group_fields': ['station_id','name', 'lat', 'long'],
         'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
         'map_agg': ['Mittelwert', 'Minimum','Maximum', 'Standard Abweichung']
     },
-    'Lärm db':{
+    'Lärm [db]':{
         'data-source': 'smart-noise',
         'data-source-station': 'smart-noise-station',
-        'field':'avg',
-        'label': 'Lärm db',
-        'group_fields': ['station_id','lat', 'long'],
+        'field':'mean_noise',
+        'label': 'Lärm [db]',
+        'group_fields': ['station_id','name', 'lat', 'long'],
         'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
         'map_agg': ['Mittelwert', 'Minimum','Maximum', 'Standard Abweichung']
     },

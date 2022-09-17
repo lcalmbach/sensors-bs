@@ -6,8 +6,11 @@ import plots
 
 class App():
     def __init__(self):
-        self.sensor = cn.SENSORS_DICT[cn.SENSORS[0]]
-        self.df = self.get_data()
+        pass
+        
+    
+    def init_data(self):
+        self.df = self.get_data(self.sensor)
         self.stations_df = self.get_stations()
         self.stations = list(self.stations_df['station_id'])
         self.min_date = self.df['date'].min()
@@ -16,10 +19,8 @@ class App():
         self.max_year = self.df['date'].max().year
 
     @st.cache()
-    def get_data(self):
-        def get_air_temp():
-            min_temp, max_temp = -50, 60
-            df = pd.read_parquet(cn.datasource['smart-climate'])
+    def get_data(self, sensor):
+        def add_time_aggregation_fields(df):
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df['date'] = pd.to_datetime(df['timestamp']).dt.date
             df['date'] = pd.to_datetime(df['date'])
@@ -31,25 +32,33 @@ class App():
             df['month_date'] = pd.to_datetime(df[['year','month','day']])
             df['day'] = pd.to_datetime(df['timestamp']).dt.day
             df['hour'] = df['timestamp'].dt.hour
-            df['date_hour'] = pd.to_datetime(df[['year','month','day', 'hour']])
+            df['date_hour'] = pd.to_datetime(df[['year', 'month', 'day', 'hour']])
+            return df
+
+        def get_air_temp():
+            min_temp, max_temp = -50, 60
+            df = pd.read_parquet(cn.datasource['smart-climate'])
+            df = add_time_aggregation_fields(df)
             # filter 125°C values
             df = df[(df['air_temp'] > min_temp) & (df['air_temp'] < max_temp)]
             return df
 
         def get_noise():
             df = pd.read_parquet(cn.datasource['smart-noise'])
+            df = add_time_aggregation_fields(df)
             return df
-
-        if self.sensor == cn.SENSORS_DICT[cn.SENSORS[0]]:
+        
+        if sensor['label'] == cn.SENSORS[0]:
             df = get_air_temp()
-        elif self.sensor == cn.SENSORS_DICT[cn.SENSORS[2]]:
+        elif sensor['label'] == cn.SENSORS[2]:
             df = get_noise()
         return df
     
 
     @st.cache()
     def get_stations(self):
-        df = pd.read_parquet(cn.datasource['smart-climate-stations'])
+        key = cn.datasource[self.sensor['data-source-station']]
+        df = pd.read_parquet(key)
         df = df[(df['lat'] > 0) & (df['long'] > 0)]
         return df
     
@@ -61,6 +70,7 @@ class App():
         df.columns = ['station_id','name', 'lat', 'long', cn.AGG_FIELD_DICT[self.aggregation],'min', 'max', 'mean', 'std']
         df[['min','max','mean', 'std']] = df[['min','max','mean','std']].astype(float).round(decimals = 2)
         return df
+
 
     @st.cache()
     def get_df_map_base(self, sel_stations, sel_hours):
@@ -81,6 +91,7 @@ class App():
             )
         elif self.aggregation=='Woche':
             _df = self.df[['year','week','week_date']].drop_duplicates().sort_values(by='week_date')
+            _df = _df.sort_values('week_date', ascending=False)
             _df['label'] = _df.agg(lambda x: f"{x['year']}-{x['week']}", axis=1)
             _df.set_index('week_date', inplace=True)
             dict_weeks = _df['label']
@@ -89,6 +100,7 @@ class App():
                 format_func=lambda x:dict_weeks[x])
         elif self.aggregation=='Monat':
             _df = self.df[['year','month','month_date']].drop_duplicates().sort_values(by='month_date')
+            _df = _df.sort_values('month_date', ascending=False)
             _df['label'] = _df.agg(lambda x: f"{x['year']}-{x['month']}", axis=1)
             _df.set_index('month_date', inplace=True)
             dict_months = _df['label']
@@ -97,6 +109,7 @@ class App():
                 format_func=lambda x:dict_months[x])
         elif self.aggregation=='Jahr':
             _df = self.df[['year']].drop_duplicates().sort_values(by='year')
+            _df = _df.sort_values('year', ascending=False)
             result = st.selectbox(self.aggregation, 
                 options=list(_df['year'])
             )
@@ -148,16 +161,19 @@ class App():
         st.metric(label=get_metric_label(), value= f'{stats[2]:.1f} ({stats[0]} - {stats[1]})')
         if self.map:
             plots.plot_colormap(df, settings)
-            if self.histogram:
-                settings = {
-                    'x': cn.AGG_FUNCTION_DICT[self.map_agg_function],
-                    'title':'Histogramm von {cn.AGG_FUNCTION_DICT[self.map_agg_function]}',
-                    'x_title': '',
-                    'y_title': 'Anzahl',
-                    'width': 800,
-                    'height': 400,
-                    'tooltip_html' : get_tooltip_html()}
-                plots.histogram(df, settings)
+        if self.histogram:
+            df = self.df_map_base[self.df_map_base['date'] == self.sel_time_interval]
+            settings = {
+                'x': self.sensor['field'],
+                'title':'Histogramm von {cn.AGG_FUNCTION_DICT[self.map_agg_function]}',
+                'x_title': '',
+                'y_title': 'Anzahl',
+                'bins': 20,
+                'x_domain':[0.100],
+                'width': 800,
+                'height': 400,
+                'tooltip_html' : get_tooltip_html()}
+            plots.histogram(df, settings)
         if self.timeseries:
             sel_stations = st.multiselect("Selektion Stationen", options=self.stations, help='Wird keine Auswahl getroffen, wird der Mittelwert aller Stationen angezeigt.')
             date_field = 'timestamp'
@@ -211,10 +227,8 @@ class App():
 
 
     def show_menu(self):
-        MENU_OPTIONS = ['Karten', 'Zeitreihe', 'Extrem-Ereignisse']
-        sel_menu = st.sidebar.selectbox('Option', options=MENU_OPTIONS)
         self.sensor = cn.SENSORS_DICT[st.sidebar.selectbox('Sensor', options=cn.SENSORS)]
-
+        self.init_data()
         with st.sidebar.expander('🔎 Filter (Karte)'):
             self.sel_stations = st.multiselect("Auswahl Stationen", options=self.stations)
             self.sel_hours = st.slider("Tageszeit", min_value=0,max_value=23,value=[0,23])
@@ -227,5 +241,5 @@ class App():
             self.timeseries = st.checkbox('Zeige Zeitreihe')
             #self.summary = st.checkbox('Zeige Zusammenfassung')
         
-        if MENU_OPTIONS.index(sel_menu)==0:
-            self.show_map()
+        
+        self.show_map()

@@ -302,9 +302,9 @@ def time_series_chart(df, settings, regression:bool=True):
     )
     if regression:
         line = chart.transform_regression(settings['x'], settings['y']).mark_line(color='orange')
-        plot = (chart + line).properties(width=settings['width'], height=settings['height'], title = title)
+        plot = (chart + line).properties(width=settings['width'], height=settings['height'], title=title)
     else:
-        plot = chart.properties(width=settings['width'], height=settings['height'], title = title)
+        plot = chart.properties(width=settings['width'], height=settings['height'], title=title)
     st.altair_chart(plot)
 
 def heatmap(df, settings):
@@ -339,9 +339,10 @@ def bar_chart(df:pd.DataFrame, settings:dict):
 
 def histogram(df, settings):
     plot = alt.Chart(df).mark_bar().encode(
-            x = alt.X(f"{settings['x']}:Q",bin = alt.BinParams(maxbins = 10)),
-            y = 'count()',
-            tooltip=['count()', settings['x']] 
-            )
-    plot.properties(title = settings['title'],width=settings['width'], height=settings['height'])
+            x = alt.X(f"{settings['x']}:Q", 
+                    bin=alt.BinParams(maxbins=10),
+                    title=''), 
+            y = alt.X('count()', title='Anzahl'),
+            tooltip=['count()'])
+    plot.properties(title = settings['title'], width=settings['width'], height=settings['height'])
     st.altair_chart(plot)
