@@ -8,6 +8,8 @@ from st_aggrid import GridOptionsBuilder, AgGrid, DataReturnMode,GridUpdateMode
 import const as cn
 import base64
 import numpy as np
+import time
+from datetime import datetime, timedelta
 
 FONT_SIZE_SMALL = 0.9
 
@@ -109,7 +111,7 @@ def get_digits(values:list):
     values = [abs(x) for x in values]
     values.sort()
     min, max= values[0], values[-1]
-    m = int(np.log10(min))
+    m = int(np.log10(max - min)) if max > min else 1
     if m < 0: m -= 1
     if m < 0:
         return abs(m)
@@ -117,4 +119,32 @@ def get_digits(values:list):
         return 1
     else:
         return 0 
-    
+
+# not used, managed in db
+def add_time_aggregation_fields(self, df):
+    st.write(df.memory_usage())
+    df = self.df
+    if self.aggregation=='Tag':
+        df['date'] = pd.to_datetime(df['timestamp']).dt.date
+        df['date'] = pd.to_datetime(df['date'])
+    else:
+        df['week_date'] = df['date'] - pd.offsets.Week(weekday=6)
+        df['week'] = df['date'].dt.week
+        df['day'] = 15
+        df['month'] = df['date'].dt.month
+        df['year'] = df['date'].dt.year
+        df['month_date'] = pd.to_datetime(df[['year','month','day']])
+        df['day'] = pd.to_datetime(df['timestamp']).dt.day
+        df['hour'] = df['timestamp'].dt.hour
+        df['date_hour'] = pd.to_datetime(df[['year', 'month', 'day', 'hour']])
+    #type_dict={'day':np.int16, 'month':np.int16, 'year':np.int16}
+    #df = df.astype(type_dict)
+    st.write(df.memory_usage().sum())
+    print(df.dtypes)
+    return df
+
+def get_date_range_from_weekno(year: int, week: int):
+    startdate = time.asctime(time.strptime(f'{year} %d 0' % week, '%Y %W %w')) 
+    startdate = datetime.strptime(startdate, '%a %b %d %H:%M:%S %Y')
+    enddate = startdate + timedelta(days=7)
+    return (startdate, enddate)

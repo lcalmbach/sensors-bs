@@ -3,243 +3,342 @@ import pandas as pd
 from datetime import datetime, date
 import const as cn
 import plots
+from queries import qry
+import database as db
+import helper
 
-class App():
+SENSORS_DICT = {
+    'air_temp': {
+        'key': 'air_temp',
+        'label': 'Lufttemperatur [°C]',
+        'value_field': 'air_temp',
+        'group_fields': ['station_id', 'name', 'lat', 'long'],
+        'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
+        'map_agg': ['Mittelwert', 'Minimum', 'Maximum', 'Standard Abweichung'],
+        'station_db_table': "T_100009_station",
+        'db_table': "T_100009_temperature",
+        'map_config': {
+            'station_agg_function': 'avg',
+            'lat': 'lat',
+            'long': 'long',
+            'station_col': 'station_id',
+            'value_col': 'value',
+            'min_val': 0,
+            'max_val': 10,
+            'station_id': 'station_id',
+            'size': 50,
+            'width': 600,
+            'height': 600,
+            'fig_text': {'avg': 'Mittlere Lufttemperatur [°C] pro Station',
+                            'min': 'Maximale Lufttemperatur [°C] pro Station',
+                            'max': 'Maximale Lufttemperatur [°C] pro Station'}
+        },
+        'histogram_config': {
+            'x': 'value',
+            'x_title': '',
+            'y_title': 'Anzahl',
+            'bins': 20,
+            'x_domain': [0.100],
+            'width': 600,
+            'height': 400,
+            'fig_text': {'avg': 'Histogramm der minimalen Lufttemperatur [°C] für {} Stationen.',
+                            'min': 'Histogramm der minimalen Lufttemperatur [°C] für {} Stationen.',
+                            'max': 'Histogramm der minimalen Lufttemperatur [°C] für {} Stationen.'}
+        },
+        'timeseries_config': {
+            'y': 'value',
+            'title': '',
+            'width': 1000,
+            'height': 300,
+            'x_title': '',
+            'color': 'station',
+            'marker_size': 30
+        }
+    },
+    'precipitation': {
+        'key': 'precipitation',
+        'label': 'Niederschlag [mm]',
+        'data-source': 'smart-climate',
+        'field': 'diff_prec',
+        'label': 'Niederschlag [mm]',
+        'group_fields': ['station_id', 'name', 'lat', 'long'],
+        'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
+        'map_agg': ['Mittelwert', 'Minimum', 'Maximum', 'Standard Abweichung']
+    },
+    'noise': {
+        'key': 'noise',
+        'label': 'Lärm [db]',
+        'field': 'mean_noise',
+        'label': 'Lärm [db]',
+        'group_fields': ['station_id', 'name', 'lat', 'long'],
+        'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
+        'map_agg': ['Mittelwert', 'Minimum', 'Maximum', 'Standard Abweichung']
+    },
+}
+_v = [SENSORS_DICT[x]['label'] for x in SENSORS_DICT]
+_k = [x for x in SENSORS_DICT]
+SENSOR_OPTIONS_DICT = dict(zip(_k, _v))
+SENSORS = list(SENSORS_DICT.keys())
+
+
+class App:
     def __init__(self):
-        pass
+        self.df = pd.DataFrame()
+        self.show_map = True
+        self.show_ts = True
+        self.show_histogram = True
+
+    def init_data(self, sensor: str):
+        """
+        reads the sensor-datatable from the database and fills the list of all stations.
+        reads the plot default settings from the sensor dictionary 
         
-    
-    def init_data(self):
-        self.df = self.get_data(self.sensor)
-        self.stations_df = self.get_stations()
-        self.stations = list(self.stations_df['station_id'])
-        self.min_date = self.df['date'].min()
-        self.max_date = self.df['date'].max()
-        self.min_year = self.df['date'].min().year
-        self.max_year = self.df['date'].max().year
+        :param sensor: sensor object 
+        :return: None
+        """
 
-    @st.cache()
-    def get_data(self, sensor):
-        def add_time_aggregation_fields(df):
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df['date'] = pd.to_datetime(df['timestamp']).dt.date
-            df['date'] = pd.to_datetime(df['date'])
-            df['week_date'] = df['date'] - pd.offsets.Week(weekday=6)
-            df['week'] = df['date'].dt.week
-            df['day'] = 15
-            df['month'] = df['date'].dt.month
-            df['year'] = df['date'].dt.year
-            df['month_date'] = pd.to_datetime(df[['year','month','day']])
-            df['day'] = pd.to_datetime(df['timestamp']).dt.day
-            df['hour'] = df['timestamp'].dt.hour
-            df['date_hour'] = pd.to_datetime(df[['year', 'month', 'day', 'hour']])
+        def get_time_min_max():
+            sql = qry['min_max_time'].format(sensor['db_table'])
+            df, ok, err_msg = db.execute_query(sql)
+            return (df.iloc[0]['min'].to_pydatetime(),
+                    df.iloc[0]['max'].to_pydatetime(),)
+
+        def get_stations():
+            sql = qry['stations_all'].format(self.sensor['station_db_table'])
+            df, ok, err_msg = db.execute_query(sql)
+            df = df[(df['lat'] > 0) & (df['long'] > 0)]
             return df
 
-        def get_air_temp():
-            min_temp, max_temp = -50, 60
-            df = pd.read_parquet(cn.datasource['smart-climate'])
-            df = add_time_aggregation_fields(df)
-            # filter 125°C values
-            df = df[(df['air_temp'] > min_temp) & (df['air_temp'] < max_temp)]
-            return df
+        self.stations_df = get_stations()
+        self.all_stations_dict = dict(zip(self.stations_df.station_id,
+                                          self.stations_df.id_name))
+        self.time_interval = get_time_min_max()
+        self.years_interval = (self.time_interval[0].year,
+                               self.time_interval[1].year)
 
-        def get_noise():
-            df = pd.read_parquet(cn.datasource['smart-noise'])
-            df = add_time_aggregation_fields(df)
-            return df
-        
-        if sensor['label'] == cn.SENSORS[0]:
-            df = get_air_temp()
-        elif sensor['label'] == cn.SENSORS[2]:
-            df = get_noise()
-        return df
-    
+    # @st.cache()
 
-    @st.cache()
-    def get_stations(self):
-        key = cn.datasource[self.sensor['data-source-station']]
-        df = pd.read_parquet(key)
-        df = df[(df['lat'] > 0) & (df['long'] > 0)]
-        return df
-    
+    def get_map_data(self):
+        # 0:time_field_name, 1:agg-func, 2:value_field_name, 3:data_table_name, 4:station_table_name, 5:time_value
 
-    @st.cache()
-    def aggregate_data(self, base_df):
-        df = pd.merge(base_df, self.stations_df, left_on=['station_id'], right_on=['station_id'], how='right')
-        df = df[self.sensor['group_fields'] + [cn.AGG_FIELD_DICT[self.aggregation], self.sensor['field']]].groupby(self.sensor['group_fields']+ [cn.AGG_FIELD_DICT[self.aggregation]]).agg(['min','max','mean','std']).reset_index()
-        df.columns = ['station_id','name', 'lat', 'long', cn.AGG_FIELD_DICT[self.aggregation],'min', 'max', 'mean', 'std']
-        df[['min','max','mean', 'std']] = df[['min','max','mean','std']].astype(float).round(decimals = 2)
+        sql = qry['map_data'].format('date',
+                                     self.sensor['map_config']['station_agg_function'],
+                                     self.sensor['db_table'],
+                                     self.sensor['station_db_table'],
+                                     self.sel_time_interval,
+                                     self.get_filter())
+        df, ok, err_msg = db.execute_query(sql)
+        # st.write(df.head(), sql)
         return df
 
+    def get_filter(self):
+        add_crit = ''
+        if self.sel_stations_list:
+            add_crit = f""" AND t2.station_id in ('{"', '".join(self.sel_stations_list)}') """
+        if self.sel_hours != [0, 23]:
+            add_crit += f" AND hour >= {self.sel_hours[0]} and hour <= {self.sel_hours[1]} "
+        return add_crit
 
-    @st.cache()
-    def get_df_map_base(self, sel_stations, sel_hours):
-        result = self.df
-        if sel_stations != []:
-            result = result[result['station_id'].isin(sel_stations)]
-        if sel_hours != [0,23]:
-            result = result[(result['hour'] >= sel_hours[0]) & (result['hour'] <= sel_hours[1])]
-        return result
 
+    def get_time_data(self, ts_agg):
+        qry_key = self.time_agg['ts_query'][ts_agg]
+        if ts_agg in [cn.TSAggregation.NONE.value, cn.TSAggregation.BAND.value]:
+            # 0: date_column 1: data_table 2: station_table, 3: date_filter_field, 4: date_filter_value, 5: additional filters
+            sql = qry[qry_key].format(self.time_agg['ts_time_field'],
+                                                      self.sensor['db_table'],
+                                                      self.sensor['station_db_table'],
+                                                      self.time_agg['key'],
+                                                      f"{self.sel_time_interval.strftime(cn.YMD_FORMAT)}",
+                                                      self.get_filter())
+            df, ok, err_msg = db.execute_query(sql)
+        # 0:aggregation function, 1:data_table_name, 2:station_table_name 3:time query ifeld, 4: time_value, 5 additional filters
+        elif ts_agg == cn.TSAggregation.MEAN.value:  # no aggregation
+            # 0: date_column 1: data_table 2: station_table, 3: date_filter_value,4: additional filters
+            sql = qry['time_data_average_all'].format(self.time_agg['ts_time_field'],
+                                                      self.sensor['db_table'],
+                                                      self.sensor['station_db_table'],
+                                                      self.time_agg['key'],
+                                                      f"'{self.sel_time_interval.strftime(cn.YMD_FORMAT)}'",
+                                                      self.get_filter())
+            df, ok, err_msg = db.execute_query(sql)
+        else:
+            df = pd.DataFrame()
+        return df
 
     def get_time_interval(self):
-        if self.aggregation == 'Tag':
+        """
+        Retrieves a selected date or range of dates to show time-aggregated data on the plots: valid aggregations are:
+        date, week_date, month_date and year. The method extracts the list of dates required for the currently selected
+        aggregation and retrieves the selection from the user via a slider for dates and a selectbox for the other time 
+        aggregation intervals,
+
+        Returns:
+            pd.DataFrame: selection from the time aggregation dict
+        """            
+        def get_options() -> dict:
+            """
+            generates a dictionary of values for week_date, month_date and year_date aggregations
+
+            Returns:
+                dict: dict with format : {'2022-09-22': '2022-37'} used in st.selectbox
+            """            
+            # 0: aggregation date, 1: 1: label, e.g. concat(year, 'week'), 2: data table
+            
+            sql = qry['date_aggregation_list'].format(self.time_agg['key'], f"concat(year, '-', {self.time_agg['second_label_field']})", self.sensor['db_table'])
+            _df, ok, err_msg = db.execute_query(sql)
+            _result_dict = dict(zip(_df['key'], _df['value']))
+            return _result_dict
+
+        if self.time_agg['key'] == 'date':
             result = st.slider('Datum',
-                min_value=self.min_date.to_pydatetime(),
-                max_value=self.max_date.to_pydatetime(),
-                value=self.max_date.to_pydatetime()
-            )
-        elif self.aggregation=='Woche':
-            _df = self.df[['year','week','week_date']].drop_duplicates().sort_values(by='week_date')
-            _df = _df.sort_values('week_date', ascending=False)
-            _df['label'] = _df.agg(lambda x: f"{x['year']}-{x['week']}", axis=1)
-            _df.set_index('week_date', inplace=True)
-            dict_weeks = _df['label']
-            result = st.selectbox(self.aggregation, 
-                options=list(dict_weeks.keys()),
-                format_func=lambda x:dict_weeks[x])
-        elif self.aggregation=='Monat':
-            _df = self.df[['year','month','month_date']].drop_duplicates().sort_values(by='month_date')
-            _df = _df.sort_values('month_date', ascending=False)
-            _df['label'] = _df.agg(lambda x: f"{x['year']}-{x['month']}", axis=1)
-            _df.set_index('month_date', inplace=True)
-            dict_months = _df['label']
-            result = st.selectbox('Monat', 
-                options=list(dict_months.keys()),
-                format_func=lambda x:dict_months[x])
-        elif self.aggregation=='Jahr':
-            _df = self.df[['year']].drop_duplicates().sort_values(by='year')
-            _df = _df.sort_values('year', ascending=False)
-            result = st.selectbox(self.aggregation, 
-                options=list(_df['year'])
-            )
+                               min_value=self.time_interval[0],
+                               max_value=self.time_interval[1],
+                               value=self.time_interval[1])
+        else:
+            pass
+            dict_options = get_options()
+            result = st.select_slider(self.time_agg['label'],
+                                  options=list(dict_options.keys()),
+                                  format_func=lambda x: dict_options[x])
+
         return result
 
-    def show_map(self):
-        def get_tooltip_html():
-            result = f"""<b>Station:</b> {{}}<br/><b>Name:</b> {{}}<br/><b>{self.sensor['field']}:</b> {{}}<br/>"""
+    def explorer(self):
+        def get_tooltip_html() -> str:
+            result = f"""<b>Station:</b> {{}}<br/>
+            <b>Name:</b> {{}}<br/>
+            <b>{'value'}:</b>{{}}<br/>"""
             return result
 
-        def get_min_max_records(df):
-            stats = df[cn.AGG_FUNCTION_DICT[self.map_agg_function]].agg(['min', 'max'])
-            df = df[df[cn.AGG_FUNCTION_DICT[self.map_agg_function]].isin([stats[0], stats[1]])]
-            return df
+        def get_min_max_records(_df: pd.DataFrame):
+            _stats = df[cn.AGG_FUNCTION_DICT[self.sensor['map_config']['station_agg_function']]].agg(['min', 'max'])
+            _df = df[df[cn.AGG_FUNCTION_DICT[self.sensor['map_config']['station_agg_function']]].isin([_stats[0], _stats[1]])]
+            return _df
 
         def get_metric_label():
-            if self.aggregation == 'Tag':
+            if self.time_agg['key'] == 'date':
                 time = f"am {self.sel_time_interval.strftime(cn.DMY_FORMAT)}"
-            elif self.aggregation == 'Woche':
-                time = f"Woche {self.sel_time_interval.strftime('%V')} {self.sel_time_interval.strftime('%Y')}"
-            elif self.aggregation == 'Monat':
+            elif self.time_agg['key'] == 'week_date':
+                time = f"Woche {self.sel_time_interval.strftime('%V')}, "
+                dates = helper.get_date_range_from_weekno(int(self.sel_time_interval.strftime('%Y')), 
+                                                        int(self.sel_time_interval.strftime('%U'))
+                                                    )
+                time += f" ({dates[0].strftime(cn.DMY_FORMAT)} - {dates[1].strftime(cn.DMY_FORMAT)})"
+            elif self.time_agg['key'] == 'month_date':
                 time = f"Monat {self.sel_time_interval.strftime('%b')} {self.sel_time_interval.strftime('%Y')}"
-            elif self.aggregation == 'Jahr':
+            elif self.time_agg['key'] == 'year_date':
                 time = f"{self.sel_time_interval}"
-            result = f"{self.sensor['label']}, {cn.METRIC_LABEL_DICT[self.aggregation][self.map_agg_function]} {time}"
+
+            result = f"{self.sensor['label']}, {time}"
             return result
 
         self.sel_time_interval = self.get_time_interval()
         # filter stations and hours from map filter to get the base dataframe
-        self.df_map_base = self.get_df_map_base(self.sel_stations,self.sel_hours)
-        df = self.aggregate_data(self.df_map_base) 
-        df = df[df[cn.AGG_FIELD_DICT[self.aggregation]] == self.sel_time_interval]
-        if self.min_max:
-            df = get_min_max_records(df)
-        settings = {
-            'lat': 'lat',
-            'long': 'long',
-            'value_col': cn.AGG_FUNCTION_DICT[self.map_agg_function],
-            'station_col': 'station_id',
-            'min_val': 0,
-            'max_val': 10,
-            'station_id':'station_id',
-            'size': 50, 
-            'tooltip_html': get_tooltip_html(),
-            'html_fields': ['station_id','name', cn.AGG_FUNCTION_DICT[self.map_agg_function]]
-        }
-        stats = df[cn.AGG_FUNCTION_DICT[self.map_agg_function]].agg(['min', 'max', 'mean', 'std'])
+        df = self.get_map_data()
 
-        st.metric(label=get_metric_label(), value= f'{stats[2]:.1f} ({stats[0]} - {stats[1]})')
-        if self.map:
-            plots.plot_colormap(df, settings)
-        if self.histogram:
-            df = self.df_map_base[self.df_map_base['date'] == self.sel_time_interval]
-            settings = {
-                'x': self.sensor['field'],
-                'title':'Histogramm von {cn.AGG_FUNCTION_DICT[self.map_agg_function]}',
-                'x_title': '',
-                'y_title': 'Anzahl',
-                'bins': 20,
-                'x_domain':[0.100],
-                'width': 800,
-                'height': 400,
-                'tooltip_html' : get_tooltip_html()}
-            plots.histogram(df, settings)
-        if self.timeseries:
-            sel_stations = st.multiselect("Selektion Stationen", options=self.stations, help='Wird keine Auswahl getroffen, wird der Mittelwert aller Stationen angezeigt.')
-            date_field = 'timestamp'
-            title = ''
-            if self.aggregation == 'Tag':
-                if sel_stations==[]:
-                    date_field = 'date_hour'
-                    df = self.df_map_base[self.df_map_base['date'] == self.sel_time_interval][[date_field, self.sensor['field']]].groupby([date_field]).agg(['mean']).reset_index()
-                    df.columns = [date_field, self.sensor['field']]
+        if len(df) == 0:
+            st.info("Es wurden keine Messungen für diesen Filter gefunden")
+        else:
+            stats = df['value'].agg(['min', 'max', 'mean', 'std'])
+            st.metric(label = get_metric_label(), value=f'{stats[2]:.1f} ({stats[0]:.1f} - {stats[1]:.1f})')
+            plot_index = 0
+            plot_cols = st.columns(2)
+            if self.show_map:
+                if self.show_top_only > 0:
+                    pass  # df = get_min_max_records(df)
+                cfg = self.sensor['map_config']
+                with plot_cols[plot_index]:
+                    cfg['tooltip_html'] = get_tooltip_html()
+                    cfg['html_fields'] = ['station_id', 'name', 'value']
+                    plots.plot_colormap(df, cfg)
+                    fig_text = cfg['fig_text'][cfg['station_agg_function']]
+                    st.markdown(fig_text)
+                    plot_index += 1
+
+            if self.show_histogram:
+                cfg = self.sensor['histogram_config']
+                self.sensor['histogram_config']['tooltip_html'] = get_tooltip_html()
+                with plot_cols[plot_index]:
+                    plots.histogram(df, self.sensor['histogram_config'])
+                    fig_text = cfg['fig_text'][self.sensor['map_config']['station_agg_function']].format(len(df))
+                    st.markdown(fig_text)
+                    plot_index += 1
+                    plot_index = plot_index % 2
+
+            if self.show_ts:
+                cfg = self.sensor['timeseries_config']
+                ts_agg = cfg['aggregate_stations']
+                cfg['x'] = self.time_agg['ts_time_field']
+                cfg['y_title'] = self.sensor['label']
+                cfg['tooltip'] = self.time_agg['ts_tooltip'][ts_agg]
+                df = self.get_time_data(ts_agg)
+                cfg['y_domain'] = [df['value'].min() - 5, df['value'].max() + 5]
+
+                if self.time_agg['key'] == 'date':
                     title = 'Stundenmittel aller Stationen'
-                else:
-                    df = self.df_map_base[(self.df_map_base['station_id'].isin(sel_stations)) & (self.df['date'] == self.sel_time_interval)]
-                    title = f'Zeitreihen von {df.station_id.nunique()} Stationen' 
-            elif self.aggregation == 'Woche':
-                if sel_stations==[]:
+                elif self.time_agg['key'] == 'week':
                     date_field = 'date_hour'
-                    df = self.df_map_base[self.df_map_base['week_date'] == self.sel_time_interval][[date_field, self.sensor['field']]].groupby([date_field]).agg(['mean']).reset_index()
+                    df = self.df_map_base[self.df_map_base['week_date'] == self.sel_time_interval][
+                        [date_field, self.sensor['field']]].groupby([date_field]).agg(['mean']).reset_index()
                     df.columns = [date_field, self.sensor['field']]
-                else:
-                    df = self.df_map_base[(self.df_map_base['station_id'].isin(sel_stations)) & (self.df_map_base['week_date'] == self.sel_time_interval)]
-            elif self.aggregation == 'Monat':
-                df = self.df_map_base[(self.df_map_base['station_id'].isin(sel_stations)) & (self.df_map_base['month_date'] == self.sel_time_interval)]
-                #df = df[['station_id','date', self.sensor['field']]].groupby(['station_id','date']).agg(['mean']).reset_index()
-                #df.columns=['station_id', 'date', self.sensor['field']]
-            elif self.aggregation == 'Jahr':
-                if sel_stations==[]:
-                    pass
-                else:
-                    date_field = 'date'
-                    df = self.df_map_base[(self.df_map_base['station_id'].isin(sel_stations)) & (self.df_map_base['date'].dt.year == self.sel_time_interval)]
-                    df = df[['station_id','date', self.sensor['field']]].groupby(['station_id','date']).agg(['mean']).reset_index()
-                    df.columns=['station_id', 'date', self.sensor['field']]
-            settings = {
-                'x': date_field, 
-                'y': self.sensor['field'],
-                'title': title,
-                'width': 800,
-                'height': 400,
-                'x_title': '',
-                'y_title': self.sensor['label'],
-                'y_domain': [df[self.sensor['field']].min()-1, df[self.sensor['field']].max()+1],
-                'tooltip': [date_field, self.sensor['field']], 
-                'marker_size': 30
-            }
-            if sel_stations != []:
-                settings['tooltip'].append('station_id')
-                settings['color'] = 'station_id'
-            plots.time_series_line(df,settings)
-        #if self.summary:
+                elif self.time_agg['key'] == 'month':
+                    df = self.df_map_base[self.df_map_base['month_date'] == self.sel_time_interval]
+                    # df = df[['station_id','date', self.sensor['field']]].groupby(['station_id','date']).agg(['mean']).reset_index()
+                    # df.columns=['station_id', 'date', self.sensor['field']]
+                elif self.time_agg['key'] == 'year':
+                    df = self.df_map_base[self.df_map_base['date'].dt.year == self.sel_time_interval]
+                    df = df[['station_id', 'date', self.sensor['field']]].groupby(['station_id', 'date']).agg(
+                        ['mean']).reset_index()
+                    df.columns = ['station_id', 'date', self.sensor['field']]
+            
+            if self.time_agg == cn.TSAggregation.NONE:
+                self.sensor['timeseries_config']['color'] = 'station'
+                self.sensor['timeseries_config']['tooltip'].insert(0, ['station'])
+            elif self.sensor['timeseries_config']['aggregate_stations'] == cn.TSAggregation.BAND.value:
+                self.sensor['timeseries_config']['x'] = 'date_hour'
+                plots.confidence_band(df, cfg)
+            else:
+                plots.time_series_line(df, cfg)
+            
+        # if self.summary:
         #    pass
 
-
     def show_menu(self):
-        self.sensor = cn.SENSORS_DICT[st.sidebar.selectbox('Sensor', options=cn.SENSORS)]
-        self.init_data()
-        with st.sidebar.expander('🔎 Filter (Karte)'):
-            self.sel_stations = st.multiselect("Auswahl Stationen", options=self.stations)
-            self.sel_hours = st.slider("Tageszeit", min_value=0,max_value=23,value=[0,23])
+        self.sensor = SENSORS_DICT[st.sidebar.selectbox('Sensor', options=list(SENSOR_OPTIONS_DICT.keys()),
+                                                        format_func=lambda x: SENSOR_OPTIONS_DICT[x])]
+
+        self.init_data(self.sensor)
         with st.sidebar.expander('⚙️Settings'):
-            self.aggregation = st.selectbox('Zeitliche Aggregation', options=self.sensor['time_agg'], index=1)
-            self.map_agg_function = st.selectbox('Aggregation Karte', options=self.sensor['map_agg'])
-            self.min_max = st.checkbox('Zeige Minimum/Maximum')
-            self.map = st.checkbox('Zeige Karte', value=True)
-            self.histogram = st.checkbox('Zeige Histogramm')
-            self.timeseries = st.checkbox('Zeige Zeitreihe')
-            #self.summary = st.checkbox('Zeige Zusammenfassung')
-        
-        
-        self.show_map()
+            self.time_agg  = cn.TIME_AGG_DICT[st.selectbox('Zeitliche Aggregation', list(cn.AGG_OPTIONS_DICT.keys()),
+                                                          format_func=lambda x: cn.AGG_OPTIONS_DICT[x])]
+            tabs = st.tabs(["Karte", "Histogramm", "Zeitreihe"])
+            with tabs[0]:
+                self.show_map = st.checkbox('Zeige Karte', value=self.show_map)
+                self.sensor['map_config']['station_agg_function'] = st.selectbox('Aggregation Karte', 
+                                                                        options=list(cn.AGG_FUNCTION_DICT.keys()),
+                                                                        format_func=lambda x:
+                                                                        cn.AGG_FUNCTION_DICT[x]
+                                                                    )
+            with tabs[1]:
+                self.show_histogram = st.checkbox('Zeige Histogramm',
+                                                  value=self.show_histogram)
+                cols = st.columns(2)
+                with cols[0]:
+                    self.show_bottom_only = st.number_input(label='Zeige Min', min_value=0, max_value=5)
+                with cols[1]:
+                    self.show_top_only = st.number_input(label='Zeige Max', min_value=0, max_value=5)
+            with tabs[2]:
+                self.show_ts = st.checkbox(label='Zeige Zeitreihe',
+                                           value=self.show_ts)
+                self.sensor['timeseries_config']['aggregate_stations'] = st.selectbox("Aggregiere Stationen",
+                                                                                      list(
+                                                                                          cn.TIME_SERIES_AGGREGATION_DICT.keys()),
+                                                                                      format_func=lambda x:
+                                                                                      cn.TIME_SERIES_AGGREGATION_DICT[x])
+
+            # self.summary = st.checkbox('Zeige Zusammenfassung')
+        with st.sidebar.expander('🔎 Filter (Karte)'):
+            self.sel_stations_list = st.multiselect("Auswahl Stationen", options=list(self.all_stations_dict.keys()),
+                                                    format_func=lambda x: self.all_stations_dict[x])
+            self.sel_hours = st.slider("Tageszeit", min_value=0, max_value=23, value=[0, 23])
+        self.explorer()

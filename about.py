@@ -20,5 +20,6 @@ class About():
         st.image('./img/splash.jpg', caption=None, width=None, use_column_width='auto', clamp=False, channels='RGB', output_format='auto')
         figure = '[image source](https://www.bs.ch/bilddatenbank)'
         st.markdown(helper.font_size_small(figure), unsafe_allow_html=True)
-
-        st.markdown(about_texts.intro.format(28, 84))
+        cols = st.columns([1, 6, 1])
+        with cols[1]:
+            st.markdown(about_texts.intro.format(28, 84))
