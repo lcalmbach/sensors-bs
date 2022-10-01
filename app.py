@@ -1,4 +1,6 @@
 import streamlit as st
+import os
+
 from about import About
 import helper
 import explorer
@@ -28,6 +30,7 @@ def main():
         page_icon=APP_ICON,
         layout="wide")
     st.sidebar.markdown(f"## <center>{APP_NAME}</center>", unsafe_allow_html=True) 
+    st.write(os.environ.get('DB_USER'))
     helper.show_lottie(LOTTIE_URL)
     
     st.session_state.args = st.experimental_get_query_params()

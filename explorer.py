@@ -1,3 +1,4 @@
+import sqlite3
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
@@ -6,75 +7,10 @@ import plots
 from queries import qry
 import database as db
 import helper
+from config.sensor import SENSORS_DICT
+from config.time_agg import TIME_AGG_DICT
 
-SENSORS_DICT = {
-    'air_temp': {
-        'key': 'air_temp',
-        'label': 'Lufttemperatur [°C]',
-        'value_field': 'air_temp',
-        'group_fields': ['station_id', 'name', 'lat', 'long'],
-        'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
-        'map_agg': ['Mittelwert', 'Minimum', 'Maximum', 'Standard Abweichung'],
-        'station_db_table': "T_100009_station",
-        'db_table': "T_100009_temperature",
-        'map_config': {
-            'station_agg_function': 'avg',
-            'lat': 'lat',
-            'long': 'long',
-            'station_col': 'station_id',
-            'value_col': 'value',
-            'min_val': 0,
-            'max_val': 10,
-            'station_id': 'station_id',
-            'size': 50,
-            'width': 600,
-            'height': 600,
-            'fig_text': {'avg': 'Mittlere Lufttemperatur [°C] pro Station',
-                            'min': 'Maximale Lufttemperatur [°C] pro Station',
-                            'max': 'Maximale Lufttemperatur [°C] pro Station'}
-        },
-        'histogram_config': {
-            'x': 'value',
-            'x_title': '',
-            'y_title': 'Anzahl',
-            'bins': 20,
-            'x_domain': [0.100],
-            'width': 600,
-            'height': 400,
-            'fig_text': {'avg': 'Histogramm der minimalen Lufttemperatur [°C] für {} Stationen.',
-                            'min': 'Histogramm der minimalen Lufttemperatur [°C] für {} Stationen.',
-                            'max': 'Histogramm der minimalen Lufttemperatur [°C] für {} Stationen.'}
-        },
-        'timeseries_config': {
-            'y': 'value',
-            'title': '',
-            'width': 1000,
-            'height': 300,
-            'x_title': '',
-            'color': 'station',
-            'marker_size': 30
-        }
-    },
-    'precipitation': {
-        'key': 'precipitation',
-        'label': 'Niederschlag [mm]',
-        'data-source': 'smart-climate',
-        'field': 'diff_prec',
-        'label': 'Niederschlag [mm]',
-        'group_fields': ['station_id', 'name', 'lat', 'long'],
-        'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
-        'map_agg': ['Mittelwert', 'Minimum', 'Maximum', 'Standard Abweichung']
-    },
-    'noise': {
-        'key': 'noise',
-        'label': 'Lärm [db]',
-        'field': 'mean_noise',
-        'label': 'Lärm [db]',
-        'group_fields': ['station_id', 'name', 'lat', 'long'],
-        'time_agg': ['Stunde', 'Tag', 'Woche', 'Monat', 'Jahr'],
-        'map_agg': ['Mittelwert', 'Minimum', 'Maximum', 'Standard Abweichung']
-    },
-}
+
 _v = [SENSORS_DICT[x]['label'] for x in SENSORS_DICT]
 _k = [x for x in SENSORS_DICT]
 SENSOR_OPTIONS_DICT = dict(zip(_k, _v))
@@ -106,7 +42,6 @@ class App:
         def get_stations():
             sql = qry['stations_all'].format(self.sensor['station_db_table'])
             df, ok, err_msg = db.execute_query(sql)
-            df = df[(df['lat'] > 0) & (df['long'] > 0)]
             return df
 
         self.stations_df = get_stations()
@@ -115,6 +50,7 @@ class App:
         self.time_interval = get_time_min_max()
         self.years_interval = (self.time_interval[0].year,
                                self.time_interval[1].year)
+        self.years = range(self.years_interval[0], self.years_interval[1] + 1)
 
     # @st.cache()
 
@@ -126,7 +62,8 @@ class App:
                                      self.sensor['db_table'],
                                      self.sensor['station_db_table'],
                                      self.sel_time_interval,
-                                     self.get_filter())
+                                     self.get_filter(),
+                                     self.sel_field)
         df, ok, err_msg = db.execute_query(sql)
         # st.write(df.head(), sql)
         return df
@@ -142,28 +79,35 @@ class App:
 
     def get_time_data(self, ts_agg):
         qry_key = self.time_agg['ts_query'][ts_agg]
+        cfg = self.sensor['timeseries_config']
         if ts_agg in [cn.TSAggregation.NONE.value, cn.TSAggregation.BAND.value]:
             # 0: date_column 1: data_table 2: station_table, 3: date_filter_field, 4: date_filter_value, 5: additional filters
-            sql = qry[qry_key].format(self.time_agg['ts_time_field'],
+            sql = qry[qry_key].format(cfg['ts_time_field'][self.time_agg['key']],
                                                       self.sensor['db_table'],
                                                       self.sensor['station_db_table'],
                                                       self.time_agg['key'],
                                                       f"{self.sel_time_interval.strftime(cn.YMD_FORMAT)}",
-                                                      self.get_filter())
+                                                      self.get_filter(),
+                                                      self.sel_field)
             df, ok, err_msg = db.execute_query(sql)
+
         # 0:aggregation function, 1:data_table_name, 2:station_table_name 3:time query ifeld, 4: time_value, 5 additional filters
         elif ts_agg == cn.TSAggregation.MEAN.value:  # no aggregation
             # 0: date_column 1: data_table 2: station_table, 3: date_filter_value,4: additional filters
-            sql = qry['time_data_average_all'].format(self.time_agg['ts_time_field'],
+            sql = qry['time_data_average_all'].format(cfg['ts_time_field'][self.time_agg['key']],
                                                       self.sensor['db_table'],
                                                       self.sensor['station_db_table'],
                                                       self.time_agg['key'],
                                                       f"'{self.sel_time_interval.strftime(cn.YMD_FORMAT)}'",
-                                                      self.get_filter())
+                                                      self.get_filter(),
+                                                      self.sel_field)
             df, ok, err_msg = db.execute_query(sql)
         else:
             df = pd.DataFrame()
+        df[cfg['y']] = df[cfg['y']].round(cfg['y_digits'])
+        df['zeit'] = df[cfg['x']].dt.strftime('%d.%m.%Y %H:%M')
         return df
+
 
     def get_time_interval(self):
         """
@@ -184,24 +128,34 @@ class App:
             """            
             # 0: aggregation date, 1: 1: label, e.g. concat(year, 'week'), 2: data table
             
-            sql = qry['date_aggregation_list'].format(self.time_agg['key'], f"concat(year, '-', {self.time_agg['second_label_field']})", self.sensor['db_table'])
+            if self.time_agg['key'] == 'year_date':
+                sql = qry['date_aggregation_list'].format(self.time_agg['key'], 
+                                                        "year", 
+                                                        self.sensor['db_table'])
+            else:
+                sql = qry['date_aggregation_list'].format(self.time_agg['key'], 
+                                                        f"concat(year, '-', {self.time_agg['second_label_field']})", 
+                                                        self.sensor['db_table'])
             _df, ok, err_msg = db.execute_query(sql)
             _result_dict = dict(zip(_df['key'], _df['value']))
             return _result_dict
 
         if self.time_agg['key'] == 'date':
-            result = st.slider('Datum',
+            result = st.slider(self.time_agg['slider_label'],
                                min_value=self.time_interval[0],
                                max_value=self.time_interval[1],
                                value=self.time_interval[1])
         else:
-            pass
             dict_options = get_options()
+            default_value = list(dict_options.keys())[len(list(dict_options.keys()))-1]
+            
             result = st.select_slider(self.time_agg['label'],
                                   options=list(dict_options.keys()),
-                                  format_func=lambda x: dict_options[x])
+                                  format_func=lambda x: dict_options[x],
+                                  value = default_value)
 
         return result
+
 
     def explorer(self):
         def get_tooltip_html() -> str:
@@ -251,7 +205,7 @@ class App:
                     cfg['tooltip_html'] = get_tooltip_html()
                     cfg['html_fields'] = ['station_id', 'name', 'value']
                     plots.plot_colormap(df, cfg)
-                    fig_text = cfg['fig_text'][cfg['station_agg_function']]
+                    fig_text = cfg['fig_text'][cfg['station_agg_function']].format(self.time_agg['title'])
                     st.markdown(fig_text)
                     plot_index += 1
 
@@ -268,44 +222,32 @@ class App:
             if self.show_ts:
                 cfg = self.sensor['timeseries_config']
                 ts_agg = cfg['aggregate_stations']
-                cfg['x'] = self.time_agg['ts_time_field']
+                cfg['x'] = cfg['ts_time_field'][self.time_agg['key']]
                 cfg['y_title'] = self.sensor['label']
-                cfg['tooltip'] = self.time_agg['ts_tooltip'][ts_agg]
                 df = self.get_time_data(ts_agg)
+                cfg['tooltip'] = ['zeit', cfg['y']]
                 cfg['y_domain'] = [df['value'].min() - 5, df['value'].max() + 5]
-
-                if self.time_agg['key'] == 'date':
-                    title = 'Stundenmittel aller Stationen'
-                elif self.time_agg['key'] == 'week':
-                    date_field = 'date_hour'
-                    df = self.df_map_base[self.df_map_base['week_date'] == self.sel_time_interval][
-                        [date_field, self.sensor['field']]].groupby([date_field]).agg(['mean']).reset_index()
-                    df.columns = [date_field, self.sensor['field']]
-                elif self.time_agg['key'] == 'month':
-                    df = self.df_map_base[self.df_map_base['month_date'] == self.sel_time_interval]
-                    # df = df[['station_id','date', self.sensor['field']]].groupby(['station_id','date']).agg(['mean']).reset_index()
-                    # df.columns=['station_id', 'date', self.sensor['field']]
-                elif self.time_agg['key'] == 'year':
-                    df = self.df_map_base[self.df_map_base['date'].dt.year == self.sel_time_interval]
-                    df = df[['station_id', 'date', self.sensor['field']]].groupby(['station_id', 'date']).agg(
-                        ['mean']).reset_index()
-                    df.columns = ['station_id', 'date', self.sensor['field']]
+                cfg['x_format'] = cfg['ts_time_format'][self.time_agg['key']]
             
-            if self.time_agg == cn.TSAggregation.NONE:
-                self.sensor['timeseries_config']['color'] = 'station'
-                self.sensor['timeseries_config']['tooltip'].insert(0, ['station'])
-            elif self.sensor['timeseries_config']['aggregate_stations'] == cn.TSAggregation.BAND.value:
-                self.sensor['timeseries_config']['x'] = 'date_hour'
+            if cfg['aggregate_stations'] == cn.TSAggregation.NONE.value:
+                cfg['color'] = 'station'
+                cfg['tooltip'].insert(0, 'station')
+            if cfg['aggregate_stations'] == cn.TSAggregation.BAND.value:
                 plots.confidence_band(df, cfg)
             else:
                 plots.time_series_line(df, cfg)
-            
-        # if self.summary:
-        #    pass
 
     def show_menu(self):
         self.sensor = SENSORS_DICT[st.sidebar.selectbox('Sensor', options=list(SENSOR_OPTIONS_DICT.keys()),
                                                         format_func=lambda x: SENSOR_OPTIONS_DICT[x])]
+        if len(self.sensor['fields']) > 1:
+            self.sel_field = st.sidebar.selectbox('Wert', 
+                                        options=list(self.sensor['fields'].keys()),
+                                        format_func=lambda x:
+                                        self.sensor['fields'][x]
+                                    )
+        else:
+            self.sel_field = list(self.sensor['fields'].keys())[0] 
 
         self.init_data(self.sensor)
         with st.sidebar.expander('⚙️Settings'):
@@ -319,6 +261,8 @@ class App:
                                                                         format_func=lambda x:
                                                                         cn.AGG_FUNCTION_DICT[x]
                                                                     )
+                
+
             with tabs[1]:
                 self.show_histogram = st.checkbox('Zeige Histogramm',
                                                   value=self.show_histogram)

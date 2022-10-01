@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import about_texts
 import helper
+import explorer as ex
 
 
 class About():
@@ -23,3 +24,7 @@ class About():
         cols = st.columns([1, 6, 1])
         with cols[1]:
             st.markdown(about_texts.intro.format(28, 84))
+            st.markdown('#### Sensoren')
+            for key in ex.SENSORS_DICT:
+                text = ex.SENSORS_DICT[key]['intro'].format(152)
+                st.markdown(text, unsafe_allow_html=True)

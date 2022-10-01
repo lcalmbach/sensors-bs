@@ -1,73 +1,10 @@
 from enum import Enum
+from config.time_agg import TIME_AGG_DICT
 
 class TSAggregation(Enum):
     NONE = 0
     MEAN = 1
     BAND = 2
-
-TIME_AGG_DICT = {
-    'date': {
-        'key': 'date',
-        'label': 'Datum',
-        'time_selector_field': 'date',
-        'map_time_field': 'date',
-        'ts_time_field': 'date_hour',
-        'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
-                        TSAggregation.MEAN.value: 'time_data_average_all',
-                        TSAggregation.BAND.value: 'time_date_stations_raw'
-                    },
-        'ts_tooltip': {TSAggregation.NONE.value: ['station','date_hour','value'], 
-                        TSAggregation.MEAN.value: ['date_hour','value'], 
-                        TSAggregation.BAND.value: ['date_hour','value'], 
-                    },
-    },
-    'week_date': {
-        'key': 'week_date',
-        'label': 'Jahr-Kalenderwoche',
-        'second_label_field': 'week',
-        'time_selector_field': 'date',
-        'ts_time_field': 'date_hour',
-        'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
-                        TSAggregation.MEAN.value: 'time_data_average_all',
-                        TSAggregation.BAND.value: 'time_date_stations_raw'
-                    },
-        'ts_tooltip': {TSAggregation.NONE.value: ['station','date_hour','value'], 
-                        TSAggregation.MEAN.value: ['date_hour','value'], 
-                        TSAggregation.BAND.value: ['date_hour','value'], 
-                    },
-    },
-    'month_date': {
-        'key': 'month_date',
-        'label': 'Jahr-Monat',
-        'second_label_field': 'month',
-        'time_selector_field': 'date',
-        'ts_time_field': 'date_hour',
-        'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
-                        TSAggregation.MEAN.value: 'time_data_average_all',
-                        TSAggregation.BAND.value: 'time_date_stations_raw'
-                    },
-        'ts_tooltip': {TSAggregation.NONE.value: ['station','date_hour','value'], 
-                        TSAggregation.MEAN.value: ['date_hour','value'], 
-                        TSAggregation.BAND.value: ['date_hour','value'], 
-                    },
-    },
-
-    'year_date': {
-        'key': 'year_date',
-        'label': 'Jahr',
-        'second_label_field': 'year',
-        'time_selector_field': 'data',
-        'ts_time_field': 'date',
-        'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
-                        TSAggregation.MEAN.value: 'time_data_average_all',
-                        TSAggregation.BAND.value: 'time_date_stations_raw'
-                    },
-        'ts_tooltip': {TSAggregation.NONE.value: ['station','date','value'], 
-                        TSAggregation.MEAN.value: ['date','value'], 
-                        TSAggregation.BAND.value: ['date','value'], 
-                    }
-    },
-}
 
 
 # used for  options list
@@ -79,7 +16,9 @@ AGG_FUNCTION_DICT = {
     'avg': 'Mittelwert',
     'min': 'Minimum',
     'max': 'Maximum',
-    'std': 'Standard Abweichung'
+    'std': 'Standard Abweichung',
+    'sum': 'Summe'
+
 }
 
 METRIC_LABEL_DICT = {
