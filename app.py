@@ -6,7 +6,7 @@ import helper
 import explorer
 
 
-__version__ = '0.0.2'
+__version__ = '0.0.3'
 __author__ = 'Lukas Calmbach'
 __author_email__ = 'lcalmbach@gmail.com'
 VERSION_DATE = '2022-09-9'
