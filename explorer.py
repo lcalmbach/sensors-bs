@@ -1,7 +1,7 @@
-import sqlite3
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
+
 import const as cn
 import plots
 from queries import qry

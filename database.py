@@ -1,9 +1,10 @@
-from multiprocessing import connection
+# from multiprocessing import connection
 import streamlit as st
 import psycopg2
 import sqlalchemy as sql
 import pandas as pd
 from typing import Tuple
+
 from db_config import dbcn
 
 TEMP_TABLE = 'temp'
