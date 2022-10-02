@@ -1,2 +1,2 @@
-# sensors-bs
-visualizaton of smart street sensors in Basel (Switzerland). Wor in Progress 🚧
+# smart-bs
+Diese App erlaubt die Visualisierung von Sensor-Daten aus dem Smart-city Programm von Basel in einem Interaktiven Dashboard. die Applikation ist in Python und mit dem Framework Streamlit geschrieben, sie ist [hier](https://smart-bs.herokuapp.com/) verfügbar. Die Daten stammen von [data.bs](https://data.bs.ch), werden aber monatlich vom Portal geladen, aufbereitet und in einer eigenen Datenbank gespeichert. Falls du Interesse hast die App nachzubauen und anzupassen, so kann ich dir gerne einen Datenbank Dump zur Verfügung stellen, du musst dich nur bei mir melden.

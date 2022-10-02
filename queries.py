@@ -40,6 +40,10 @@ qry = {
     # 0: aggregation date, 1: 1: labe, e.g. concat(year, 'week'), 2: data table
     'date_aggregation_list': """select distinct {0} as "key", {1} as "value" from  public."{2}" 
     where {0} is not null
-    order by {0} asc"""
+    order by {0} asc""",
+
+    'no_stations_query': """select count(*) as value from public."{}"
+    """
+
 
 }

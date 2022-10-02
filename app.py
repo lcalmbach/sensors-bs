@@ -11,8 +11,9 @@ __author__ = 'Lukas Calmbach'
 __author_email__ = 'lcalmbach@gmail.com'
 VERSION_DATE = '2022-09-9'
 GIT_REPO = 'https://github.com/lcalmbach/smart-bs'
-APP_NAME = 'sensors-bs'
+APP_NAME = 'smart-bs'
 APP_ICON = "📐"
+HELP_PAGE = 'https://lcalmbach.github.io/smart-bs-help/'
 
 MENU_OPTIONS = ['About', 'Explorer']
 MENU_ANALYSIS = ['Temperature Trend', 'Nitrate in Groundwater']
@@ -36,6 +37,8 @@ def main():
     if not('calls' in st.session_state):
         st.session_state.calls = 0
     
+    help_link = f"""<a href="{HELP_PAGE}"><img src="https://flyclipart.com/thumb2/water-rescue-clipart-collection-236445.png" style="height:40px" title="Hilfe" alt="Hilfe"></a>"""
+    st.sidebar.markdown(help_link, unsafe_allow_html=True)
     menu_item = st.sidebar.selectbox('Menu', options=MENU_OPTIONS)
     if st.session_state.args != {} and st.session_state.calls == 0:
         pass

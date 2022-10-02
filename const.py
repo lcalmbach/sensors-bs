@@ -18,25 +18,24 @@ AGG_FUNCTION_DICT = {
     'max': 'Maximum',
     'std': 'Standard Abweichung',
     'sum': 'Summe'
-
 }
 
 METRIC_LABEL_DICT = {
-    'Tag': {'Mittelwert': 'Tagesmittel', 'Minimum': 'Tages-Minimum', 'Maximum': 'Tages-Maximum',
-            'Standard Abweichung': 'Tages-Standardardabweichung'},
-    'Woche': {'Mittelwert': 'Wochenmittel', 'Minimum': 'Wochen-Minimum', 'Maximum': 'Wochen-Maximum',
-              'Standard Abweichung': 'Wochen-Standardardabweichung'},
-    'Monat': {'Mittelwert': 'Monatsmittel', 'Minimum': 'Monats-Minimum', 'Maximum': 'Monats-Maximum',
-              'Standard Abweichung': 'Monats-Standardardabweichung'},
-    'Jahr': {'Mittelwert': 'Jahresmittel', 'Minimum': 'Jahres-Minimum', 'Maximum': 'JAhres-Maximum',
-             'Standard Abweichung': 'Jahres-Standardardabweichung'}
+    'date': {'avg': 'Tagesmittel', 'min': 'Tages-Minimum', 'max': 'Tages-Maximum',
+            'std': 'Tages-Standardardabweichung', 'sum': 'Tages-Total'},
+    'week_date': {'avg': 'Wochenmittel', 'min': 'Wochen-Minimum', 'max': 'Wochen-Maximum',
+              'std': 'Wochen-Standardardabweichung', 'sum': 'Wochen-Total'},
+    'month_date': {'avg': 'Monatsmittel', 'min': 'Monats-Minimum', 'max': 'Monats-Maximum',
+              'std': 'Monats-Standardardabweichung', 'sum': 'Monats-Total'},
+    'year_date': {'avg': 'Jahresmittel', 'min': 'Jahres-Minimum', 'max': 'Jahres-Maximum',
+             'std': 'Jahres-Standardardabweichung', 'sum': 'Jahrs-Total'}
 }
 
 GRID_ROW_HEIGHT = 30
 DMY_FORMAT = "%d.%m.%Y"
 YMD_FORMAT = "%Y-%m-%d"
 
-TIME_SERIES_AGGREGATION_DICT = {0: 'keine Aggregation', 1: 'Mittelwert', 2: 'Werteband'}
+TIME_SERIES_AGGREGATION_DICT = {0: 'keine Aggregation', 1: 'Mittelwert', 2: 'Werteband (Standardabweichung)'}
 
 
 

@@ -24,11 +24,10 @@ TIME_AGG_DICT = {
     'week_date': {
         'key': 'week_date',
         'title': 'Wochen',
-        'label': 'Jahr-Kalenderwoche',
+        'label': 'Kalenderwoche',
         'slider_label': 'Wähle eine Woche',
         'second_label_field': 'week',
-        'time_selector_field': 'date',
-        'ts_time_field': 'date',
+        'time_selector_field': 'week_date',
         'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
                         TSAggregation.MEAN.value: 'time_data_average_all',
                         TSAggregation.BAND.value: 'time_date_stations_raw'
@@ -41,10 +40,10 @@ TIME_AGG_DICT = {
     'month_date': {
         'key': 'month_date',
         'title': 'Monats',
-        'label': 'Wähle einen Monat',
+        'label': 'Monat',
+        'slider_label': 'Wähle einen Monat',
         'second_label_field': 'month',
-        'time_selector_field': 'date',
-        'ts_time_field': 'date',
+        'time_selector_field': 'month_date',
         'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
                         TSAggregation.MEAN.value: 'time_data_average_all',
                         TSAggregation.BAND.value: 'time_date_stations_raw'
@@ -60,15 +59,14 @@ TIME_AGG_DICT = {
         'title': 'Jahres',
         'label': 'Jahr',
         'second_label_field': 'year',
-        'time_selector_field': 'data',
-        'ts_time_field': 'date',
+        'time_selector_field': 'year_date',
         'ts_query': {TSAggregation.NONE.value: 'time_date_stations_raw', 
                         TSAggregation.MEAN.value: 'time_data_average_all',
                         TSAggregation.BAND.value: 'time_date_stations_raw'
                     },
-        'ts_tooltip': {TSAggregation.NONE.value: ['station','date','value'], 
-                        TSAggregation.MEAN.value: ['date','value'], 
-                        TSAggregation.BAND.value: ['date','value'], 
+        'ts_tooltip': {TSAggregation.NONE.value: ['station','year_date','value'], 
+                        TSAggregation.MEAN.value: ['year_date','value'], 
+                        TSAggregation.BAND.value: ['year_date','value'], 
                     }
     },
 }

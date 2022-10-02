@@ -1,8 +1,11 @@
 import streamlit as st
 from datetime import datetime
+
 import about_texts
 import helper
-import explorer as ex
+from explorer import SENSORS_DICT
+from queries import qry
+import database as db
 
 
 class About():
@@ -14,8 +17,7 @@ class About():
     
     def show_menu(self):
         """
-        numbers from 
-        https://www.aue.bs.ch/wasser/grundwasser/grundwasserpegel-grundwasserqualitaet.html > 84
+
 
         """
         st.image('./img/splash.jpg', caption=None, width=None, use_column_width='auto', clamp=False, channels='RGB', output_format='auto')
@@ -25,6 +27,8 @@ class About():
         with cols[1]:
             st.markdown(about_texts.intro.format(28, 84))
             st.markdown('#### Sensoren')
-            for key in ex.SENSORS_DICT:
-                text = ex.SENSORS_DICT[key]['intro'].format(152)
+            for key in SENSORS_DICT:
+                sql = qry['no_stations_query'].format(SENSORS_DICT[key]['station_db_table'])
+                stations, ok, err_msg = db.get_value(sql)
+                text = SENSORS_DICT[key]['intro'].format(stations)
                 st.markdown(text, unsafe_allow_html=True)
