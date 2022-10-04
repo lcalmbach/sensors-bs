@@ -64,6 +64,16 @@ class App:
                                      self.sel_field)
         df, ok, err_msg = db.execute_query(sql)
         return df
+    
+    def get_histo_data(self):
+        # value_field, data_table_name, time_field_name, time_value, additional_filters
+        sql = qry['histo_data'].format(self.sel_field,
+                                     self.sensor['db_table'],
+                                     self.time_agg['time_selector_field'],
+                                     self.sel_time_interval,
+                                     self.get_filter())
+        df, ok, err_msg = db.execute_query(sql)
+        return df
 
     def get_filter(self):
         add_crit = ''
@@ -211,10 +221,11 @@ class App:
                     plot_index += 1
 
             if self.show_histogram:
+                histo_df = self.get_histo_data() if self.histo_values == 0 else map_df
                 cfg = self.sensor['histogram_config']
                 self.sensor['histogram_config']['tooltip_html'] = get_tooltip_html()
                 with plot_cols[plot_index]:
-                    plots.histogram(map_df, self.sensor['histogram_config'])
+                    plots.histogram(histo_df, self.sensor['histogram_config'])
                     fig_text = cfg['fig_text'][self.sensor['map_config']['station_agg_function']].format(len(map_df))
                     st.markdown(fig_text)
                     plot_index += 1
@@ -268,6 +279,10 @@ class App:
             with tabs[1]:
                 self.show_histogram = st.checkbox('Zeige Histogramm',
                                                   value=self.show_histogram)
+                self.histo_values = st.selectbox('Basis', options=cn.HiSTO_VALUES_DICT,
+                                                                        format_func=lambda x:
+                                                                        cn.HiSTO_VALUES_DICT[x],
+                                                                        help=cn.HELP_DICT['histo_basis'])
             with tabs[2]:
                 self.show_ts = st.checkbox(label='Zeige Zeitreihe',
                                            value=self.show_ts)

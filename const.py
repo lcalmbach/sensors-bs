@@ -36,7 +36,9 @@ DMY_FORMAT = "%d.%m.%Y"
 YMD_FORMAT = "%Y-%m-%d"
 
 TIME_SERIES_AGGREGATION_DICT = {0: 'keine Aggregation', 1: 'Mittelwert', 2: 'Werteband (Standardabweichung)'}
+HiSTO_VALUES_DICT = {0: 'Einzelwerte', 1: 'Aggregierte Werte'}
 
 
-
-
+HELP_DICT = {
+    'histo_basis': "Aggregierte Werte = Auf Karte pro Station aggregierter Werte (1 pro STation), Einzelwerte: jeder einzelne Messwert im Zeitintervall (n pro Station)"
+}

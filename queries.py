@@ -11,10 +11,15 @@ qry = {
     group by 
         t1."station_id", t2."name", t2."lat", t2."long", t1."{0}" """,
     
-    # 0:value_field_name, 1:data_table_name, 2:time_field_name 3:time_value
-    #'histo_data': """select "{0}" from public."{1}" t1 where t1."{2}" = '{3}'
-    #""",
-
+    # 0:value_field, 1:data_table_name, 2:time_field_name, 3:time_value, 4:additional_filters
+    'histo_data': """select "{0}" as value 
+    from 
+        public."{1}"
+    where 
+        "{2}" = '{3}'
+        {4}""",
+    
+    
     # 0:time_field, 1:aggregation function, 2:data_table_name, 3:station_table_name
     # 4:time query feld, 5: time_value 6: additional filters
     'time_data_average_all': """select {0}, avg("{6}") as value from 
