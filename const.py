@@ -42,3 +42,6 @@ HiSTO_VALUES_DICT = {0: 'Einzelwerte', 1: 'Aggregierte Werte'}
 HELP_DICT = {
     'histo_basis': "Aggregierte Werte = Auf Karte pro Station aggregierter Werte (1 pro STation), Einzelwerte: jeder einzelne Messwert im Zeitintervall (n pro Station)"
 }
+TIME_SELECTION_DICT = {
+    0: "Nur Werte aus diesem Zeitraum", 1: "Keine Werte aus diesem Zeitraum"
+}

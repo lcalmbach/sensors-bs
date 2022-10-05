@@ -79,8 +79,11 @@ class App:
         add_crit = ''
         if self.sel_stations_list:
             add_crit = f""" AND t2.station_id in ('{"', '".join(self.sel_stations_list)}') """
-        if self.sel_hours != [0, 23]:
-            add_crit += f" AND hour >= {self.sel_hours[0]} and hour <= {self.sel_hours[1]} "
+        if self.sel_hours != (0, 23):
+            if self.sel_hours_mode == 0:
+                add_crit += f" AND (hour >= {self.sel_hours[0]} and hour <= {self.sel_hours[1]}) "
+            else:
+                add_crit += f" AND (hour <= {self.sel_hours[0]} or hour >= {self.sel_hours[1]}) "
         return add_crit
 
 
@@ -287,7 +290,7 @@ class App:
                 self.show_ts = st.checkbox(label='Zeige Zeitreihe',
                                            value=self.show_ts)
                 self.sensor['timeseries_config']['aggregate_stations'] = st.selectbox("Aggregiere Stationen",
-                                                                                      list(
+                                                                                      options=list(
                                                                                           cn.TIME_SERIES_AGGREGATION_DICT.keys()),
                                                                                       format_func=lambda x:
                                                                                       cn.TIME_SERIES_AGGREGATION_DICT[x])
@@ -297,4 +300,9 @@ class App:
             self.sel_stations_list = st.multiselect("Auswahl Stationen", options=list(self.all_stations_dict.keys()),
                                                     format_func=lambda x: self.all_stations_dict[x])
             self.sel_hours = st.slider("Tageszeit", min_value=0, max_value=23, value=[0, 23])
+            self.sel_hours_mode = st.radio("Filter Tageszeit:", 
+                                    options=list(
+                                    cn.TIME_SELECTION_DICT.keys()),
+                                    format_func=lambda x:
+                                    cn.TIME_SELECTION_DICT[x])
         self.explorer()
