@@ -45,3 +45,6 @@ HELP_DICT = {
 TIME_SELECTION_DICT = {
     0: "Nur Werte aus diesem Zeitraum", 1: "Keine Werte aus diesem Zeitraum"
 }
+
+# used to determine the max time gap between point in a time series diagram
+MAX_TIME_GAP_DICT = {'date': 1/12, 'week_date': 1/12, 'month_date': 1/12, 'year_date': 2}

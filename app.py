@@ -9,7 +9,7 @@ import explorer
 __version__ = '0.0.5'
 __author__ = 'Lukas Calmbach'
 __author_email__ = 'lcalmbach@gmail.com'
-VERSION_DATE = '2022-10-04'
+VERSION_DATE = '2022-10-05'
 GIT_REPO = 'https://github.com/lcalmbach/smart-bs'
 APP_NAME = 'smart-bs'
 APP_ICON = "📐"

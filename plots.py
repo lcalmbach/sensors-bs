@@ -142,9 +142,11 @@ def insert_blank_time_records(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     df['date2'] = (df[settings['x']].astype(np.int64)) / 10 ** 9  # convert to seconds
     df['diff'] = df['date2'].diff(-1)
     for index, row in df[df['diff'] < dist].iterrows():
-        df_new_row = pd.DataFrame({settings['x']: row[settings['x']] + datetime.timedelta(1), settings['y']: np.nan},
-                                  index=[0])
-        df = pd.concat([df, df_new_row], ignore_index=True)
+        empty_value_row = dict(row.copy())
+        empty_value_row[settings['x']] = row[settings['x']] + datetime.timedelta(settings['max_x_distance'])
+        empty_value_row[settings['y']] = np.nan
+        empty_value_row = pd.DataFrame(empty_value_row, index=[0])
+        df = pd.concat([df, empty_value_row], ignore_index=True)
     return df
 
 
@@ -229,6 +231,9 @@ def time_series_bar(df, settings):
 
 
 def time_series_line(df, settings):
+    if 'max_x_distance' in settings:
+        df = insert_blank_time_records(df, settings)
+
     if 'x_domain' in settings:
         xax = alt.X(f"{settings['x']}", 
                     title=settings['x_title'],

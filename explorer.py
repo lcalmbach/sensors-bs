@@ -243,16 +243,17 @@ class App:
                 cfg['tooltip'] = ['zeit', cfg['y']]
                 cfg['y_domain'] = [ts_df['value'].min() - 5, ts_df['value'].max() + 5]
                 cfg['x_format'] = cfg['ts_time_format'][self.time_agg['key']]
-            
-            if cfg['aggregate_stations'] == cn.TSAggregation.NONE.value:
-                cfg['color'] = 'station'
-                cfg['tooltip'].insert(0, 'station')
-            if cfg['aggregate_stations'] == cn.TSAggregation.BAND.value:
-                plots.confidence_band(ts_df, cfg)
-            else:
-                plots.time_series_line(ts_df, cfg)
-            fig_text = cfg['fig_text'][self.sensor['map_config']['station_agg_function']].format(len(map_df))
-            st.markdown(fig_text)
+                cfg['max_x_distance'] = cn.MAX_TIME_GAP_DICT[self.time_agg['key']]
+
+                if cfg['aggregate_stations'] == cn.TSAggregation.NONE.value:
+                    cfg['color'] = 'station'
+                    cfg['tooltip'].insert(0, 'station')
+                if cfg['aggregate_stations'] == cn.TSAggregation.BAND.value:
+                    plots.confidence_band(ts_df, cfg)
+                else:
+                    plots.time_series_line(ts_df, cfg)
+                fig_text = cfg['fig_text'][self.sensor['map_config']['station_agg_function']].format(len(map_df))
+                st.markdown(fig_text)
 
     def show_menu(self):
         self.sensor = SENSORS_DICT[st.sidebar.selectbox('Sensor', options=list(SENSOR_OPTIONS_DICT.keys()),
