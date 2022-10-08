@@ -10,6 +10,7 @@ import base64
 import numpy as np
 import time
 from datetime import datetime, timedelta
+import math
 
 FONT_SIZE_SMALL = 0.9
 
@@ -148,3 +149,10 @@ def get_date_range_from_weekno(year: int, week: int):
     startdate = datetime.strptime(startdate, '%a %b %d %H:%M:%S %Y')
     enddate = startdate + timedelta(days=7)
     return (startdate, enddate)
+
+def decibel_mean(df:pd.DataFrame):
+    # implements the following aggregation formula
+    # lm = 10 * log[1/n * sum(10^ (0.1*Li)) ]
+    
+    result = 10 * math.log10( 1 / len(df) * ((10 ** (df['value'] * 0.1)).sum() ))
+    return result

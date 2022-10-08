@@ -152,7 +152,7 @@ def insert_blank_time_records(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 
 def insert_blank_records(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
     """checks the distance between the x values of a dataframe and inserts new x values with a null y value
-    if the distinacne between rows is larger than settings['max_x_distance']. this will force lines to break in a plot
+    if the distance between rows is larger than settings['max_x_distance']. this will force lines to break in a plot
     instead of being connected.
 
     Args:
@@ -160,7 +160,7 @@ def insert_blank_records(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
         settings (dict):plot settings
 
     Returns:
-        pd.DataFrame: _description_
+        pd.DataFrame: input dataframe
     """
 
     dist = -settings['max_x_distance']
@@ -174,7 +174,7 @@ def insert_blank_records(df: pd.DataFrame, settings: dict) -> pd.DataFrame:
 def confidence_band(df, settings):
     title = settings['title'] if 'title' in settings else ''
     if 'max_x_distance' in settings:
-        df = insert_blank_records(df, settings)
+        df = insert_blank_time_records(df, settings)
     line = alt.Chart(df).mark_line().encode(
         x=alt.X(f"{settings['x']}", title=settings['x_title']),
         y=alt.Y(f"mean({settings['y']})", title=settings['y_title'], scale=alt.Scale(domain=settings['y_domain'])),
@@ -231,6 +231,7 @@ def time_series_bar(df, settings):
 
 
 def time_series_line(df, settings):
+
     if 'max_x_distance' in settings:
         df = insert_blank_time_records(df, settings)
 
@@ -339,7 +340,6 @@ def heatmap(df, settings):
 
 
 def bar_chart(df: pd.DataFrame, settings: dict):
-    st.write(settings)
     if 'title' not in settings:
         settings['title'] = ''
     settings['tooltip'] = [settings['x'], settings['y']]
@@ -361,11 +361,14 @@ def bar_chart(df: pd.DataFrame, settings: dict):
 
 
 def histogram(df, settings):
+    mb = len(df) / 20
+    mb = 5 if mb < 5 else mb
+    mb = 100 if mb > 100 else mb
     if 'title' not in settings:
         settings['title'] = ''
     plot = alt.Chart(df).mark_bar().encode(
         x=alt.X(f"{settings['x']}:Q",
-                bin=alt.BinParams(maxbins=10),
+                bin=alt.BinParams(maxbins=mb),
                 title=''),
         y=alt.X('count()', title='Anzahl'),
         tooltip=['count()'])

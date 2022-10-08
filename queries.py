@@ -11,6 +11,17 @@ qry = {
     group by 
         t1."station_id", t2."name", t2."lat", t2."long", t1."{0}" """,
     
+    # 0:value_field, 1:data_table_name, 2:station_table_name, 
+    # 3:time_selector, 4:time_value, 5:additional filters
+    'map_data_raw': """select t1.station_id, t2."name" ,t2."lat", t2."long", t1."{0}" as value 
+    from 
+        public."{1}" t1
+        inner join public."{2}" t2 on t2.station_id = t1.station_id
+    where 
+        t2.lat between 46 and 49 and t2.long between 6 and 9 and t1."{3}" = '{4}'
+        {5}
+    """,
+    
     # 0:value_field, 1:data_table_name, 2:time_field_name, 3:time_value, 4:additional_filters
     'histo_data': """select "{0}" as value 
     from 
@@ -35,7 +46,8 @@ qry = {
         inner join public."{2}" t2 on t2.station_id = t1.station_id 
         where t2.lat > 40 and t1."{3}" = '{4}' 
         {5} 
-        group by concat(t1.station_id, ' ', t2."name"), t2."lat", t2."long", t1."{0}" """,
+        group by concat(t1.station_id, ' ', t2."name"), t2."lat", t2."long", t1."{0}" 
+        order by concat(t1.station_id, ' ', t2."name"), {0}""",
 
     'min_max_time': """select min(date) as min, max(date) as max from public."{}" """,
 

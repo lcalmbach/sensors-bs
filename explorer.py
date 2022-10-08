@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
+import math
 
 import const as cn
 import plots
@@ -52,10 +53,27 @@ class App:
                                self.time_interval[1].year)
         self.years = range(self.years_interval[0], self.years_interval[1] + 1)
 
+    def decibel_mean(df):
+        # lm = 10 * log[1/n * sum(10^(0.1*Li)) ]
+        #return 10 * math.log10(1/len(df) * 10 ^ (0.1 * df['pegel']))
+        return 10 * math.log10( 1 / len(df) * ((10 ** (df['pegel'] * 0.1)).sum() ))
+        
     # @st.cache()
     def get_map_data(self):
+        cfg = self.sensor['map_config']
         # 0:time_field_name, 1:agg-func, 2:value_field_name, 3:data_table_name, 4:station_table_name, 5:time_value
-        sql = qry['map_data'].format(self.time_agg['time_selector_field'],
+        if self.sensor['key'] == 'noise' and cfg['station_agg_function'] == 'avg':
+            # average of noise is calculated differently
+            # 1:value_field, 2:data_table_name, 3:station_table_name, 
+            # 4:time_selector, 5:time_value, 6:additional filters
+            sql = qry['map_data_raw'].format(self.sel_field,
+                                     self.sensor['db_table'],
+                                     self.sensor['station_db_table'],
+                                     self.time_agg['time_selector_field'],
+                                     self.sel_time_interval,
+                                     self.get_filter())
+        else:
+            sql = qry['map_data'].format(self.time_agg['time_selector_field'],
                                      self.sensor['map_config']['station_agg_function'],
                                      self.sensor['db_table'],
                                      self.sensor['station_db_table'],
@@ -63,6 +81,11 @@ class App:
                                      self.get_filter(),
                                      self.sel_field)
         df, ok, err_msg = db.execute_query(sql)
+        if self.sensor['key'] == 'noise' and cfg['station_agg_function'] == 'avg':
+            grouping = list(df.columns.drop('value'))
+            df = df.groupby(grouping).apply(helper.decibel_mean).reset_index()
+            df = df.rename(columns={0:'value'})
+
         return df
     
     def get_histo_data(self):
@@ -72,6 +95,8 @@ class App:
                                      self.time_agg['time_selector_field'],
                                      self.sel_time_interval,
                                      self.get_filter())
+        sql = sql.replace('t2.','')
+        # st.write(sql)
         df, ok, err_msg = db.execute_query(sql)
         return df
 
@@ -163,7 +188,6 @@ class App:
                                   options=list(dict_options.keys()),
                                   format_func=lambda x: dict_options[x],
                                   value = default_value)
-
         return result
 
 
@@ -229,7 +253,10 @@ class App:
                 self.sensor['histogram_config']['tooltip_html'] = get_tooltip_html()
                 with plot_cols[plot_index]:
                     plots.histogram(histo_df, self.sensor['histogram_config'])
-                    fig_text = cfg['fig_text'][self.sensor['map_config']['station_agg_function']].format(len(map_df))
+                    if self.histo_values == 0:
+                        fig_text = cfg['fig_text_single_val'].format(len(map_df), len(histo_df))
+                    else:
+                        fig_text = cfg['fig_text_agg'][self.sensor['map_config']['station_agg_function']].format(len(map_df))
                     st.markdown(fig_text)
                     plot_index += 1
                     plot_index = plot_index % 2
@@ -241,9 +268,13 @@ class App:
                 cfg['y_title'] = self.sensor['label']
                 ts_df = self.get_time_data(ts_agg)
                 cfg['tooltip'] = ['zeit', cfg['y']]
-                cfg['y_domain'] = [ts_df['value'].min() - 5, ts_df['value'].max() + 5]
+                if cfg['y_min'] <= cfg['y_max']:
+                    cfg['y_domain'] = [ts_df['value'].min() - 5, ts_df['value'].max() + 5]
+                else:
+                    cfg['y_domain'] = (cfg['y_min'], cfg['y_max'])
                 cfg['x_format'] = cfg['ts_time_format'][self.time_agg['key']]
                 cfg['max_x_distance'] = cn.MAX_TIME_GAP_DICT[self.time_agg['key']]
+                cfg['marker_size'] = cn.TS_SYMBOL_SIZE if cfg['show_symbol'] else 0
 
                 if cfg['aggregate_stations'] == cn.TSAggregation.NONE.value:
                     cfg['color'] = 'station'
@@ -252,7 +283,7 @@ class App:
                     plots.confidence_band(ts_df, cfg)
                 else:
                     plots.time_series_line(ts_df, cfg)
-                fig_text = cfg['fig_text'][self.sensor['map_config']['station_agg_function']].format(len(map_df))
+                fig_text = cfg['fig_text'][cfg['aggregate_stations']].format(len(map_df))
                 st.markdown(fig_text)
 
     def show_menu(self):
@@ -288,13 +319,22 @@ class App:
                                                                         cn.HiSTO_VALUES_DICT[x],
                                                                         help=cn.HELP_DICT['histo_basis'])
             with tabs[2]:
+                cfg = self.sensor['timeseries_config']
                 self.show_ts = st.checkbox(label='Zeige Zeitreihe',
                                            value=self.show_ts)
-                self.sensor['timeseries_config']['aggregate_stations'] = st.selectbox("Aggregiere Stationen",
+                cfg['aggregate_stations'] = st.selectbox("Aggregiere Stationen",
                                                                                       options=list(
                                                                                           cn.TIME_SERIES_AGGREGATION_DICT.keys()),
                                                                                       format_func=lambda x:
                                                                                       cn.TIME_SERIES_AGGREGATION_DICT[x])
+                cols = st.columns(2)
+                with cols[0]:
+                    cfg['y_min'] = st.number_input("Y-Achse min", 0, 
+                        help=cn.HELP_DICT['ts-yaxis'])
+                    
+                with cols[1]:
+                    cfg['y_max'] = st.number_input("max", 0)
+                cfg['show_symbol'] = st.checkbox('Zeige Symbole', True)
 
             # self.summary = st.checkbox('Zeige Zusammenfassung')
         with st.sidebar.expander('🔎 Filter (Karte)', expanded=True):

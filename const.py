@@ -40,7 +40,8 @@ HiSTO_VALUES_DICT = {0: 'Einzelwerte', 1: 'Aggregierte Werte'}
 
 
 HELP_DICT = {
-    'histo_basis': "Aggregierte Werte = Auf Karte pro Station aggregierter Werte (1 pro STation), Einzelwerte: jeder einzelne Messwert im Zeitintervall (n pro Station)"
+    'histo_basis': "Aggregierte Werte = Auf Karte pro Station aggregierter Werte (1 Wert pro Station), Einzelwerte: jeder einzelne Messwert im Zeitintervall (n pro Station)",
+    'ts-yaxis': "Wenn Minimum und Maximum für die Y-Achse identisch sind, so werden die Achse-Werte automatisch berechnet."
 }
 TIME_SELECTION_DICT = {
     0: "Nur Werte aus diesem Zeitraum", 1: "Keine Werte aus diesem Zeitraum"
@@ -48,3 +49,5 @@ TIME_SELECTION_DICT = {
 
 # used to determine the max time gap between point in a time series diagram
 MAX_TIME_GAP_DICT = {'date': 1/12, 'week_date': 1/12, 'month_date': 1/12, 'year_date': 2}
+
+TS_SYMBOL_SIZE = 30

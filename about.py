@@ -1,5 +1,4 @@
 import streamlit as st
-from datetime import datetime
 
 import about_texts
 import helper
@@ -10,15 +9,13 @@ import database as db
 
 class About():
     def __init__(self):
-        #self.wq_data = data.get_water_quality_data()
-        #self.stations_list = list(self.wq_data['station_id'].unique())
-        #self.well_records = data.get_well_records([])
         pass
     
     def show_menu(self):
         """
-
-
+        Shows a short intro text (from about_texts.py) then a list of all sensors (json from sensoren.py). for noise, a 
+        formula for average value calculation is shown: Streamlit does not support latex in fstrings, therefore noise has to 
+        be handled seperature. the formula shows how the average value is calculated
         """
         st.image('./img/splash.jpg', caption=None, width=None, use_column_width='auto', clamp=False, channels='RGB', output_format='auto')
         figure = '[image source](https://www.bs.ch/bilddatenbank)'
@@ -32,3 +29,5 @@ class About():
                 stations, ok, err_msg = db.get_value(sql)
                 text = SENSORS_DICT[key]['intro'].format(stations)
                 st.markdown(text, unsafe_allow_html=True)
+                if SENSORS_DICT[key]['key']=='noise':
+                    st.latex(r"""L_m = 10 · log(\frac{1}{N} · \sum_{i=1}^{N} 10^{0.1·L_i}""")
