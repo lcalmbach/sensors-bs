@@ -33,3 +33,13 @@ Stations are extracted seperately as distinct values from the data and include t
         'map_agg': ['Mittelwert', 'Minimum','Maximum', 'Standard Abweichung']
     },
 ```
+
+### smart elefant system variables
+#### sql elefant
+DATABASE vrxlzjbq
+DB_HOST lucky.db.elephantsql.com
+DB_PASS j85OQOVHnc-utChz9drzSRFydOWbdMrm
+DB_USER vrxlzjbq
+
+Heroku
+DB_HOST ec2-99-80-170-190.eu-west-1.compute.amazonaws.com
