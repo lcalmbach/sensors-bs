@@ -1,4 +1,5 @@
 env
+hide
 __py_cache__
 .vscode
 todo.md
